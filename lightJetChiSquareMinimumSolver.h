@@ -51,8 +51,18 @@ private:
  public:
 
   lightJetChiSquareMinimumSolver(vector<double>& , vector<double>& , vector<double>& , vector<double>& , double& , double& );
+  lightJetChiSquareMinimumSolver(int, double& , double& );
 
   lightJetChiSquareMinimumSolver(const lightJetChiSquareMinimumSolver& other);
+
+  void setupEquations(vector<double>& , vector<double>& , vector<double>&, vector<double>&);
+
+  int nJets(){return nJets_;};
+  double jetPxWidth2(int i){return jetPxWidths2_.at(i);};
+  double jetPyWidth2(int i){return jetPyWidths2_.at(i);};
+  double jetPxPyWidth(int i){return jetPxPyWidths_.at(i);};
+  vector<double>* getMinDeltasX(){return &minDeltasX_;};
+  vector<double>* getMinDeltasY(){return &minDeltasY_;};
 
   ~lightJetChiSquareMinimumSolver();
 
