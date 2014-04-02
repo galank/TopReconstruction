@@ -14,40 +14,45 @@
 #include "Math/Minimizer.h"
 #include "Math/Functor.h"
 #include "Math/Factory.h"
-#include "DataFormats/Math/interface/LorentzVector.h"
+#include "Math/GenVector/LorentzVector.h"
 
 #include "neutrinoSolutions.h"
-#include "NeutrinoEllipseCalculator.cxx"
-#include "ClosestApproach.cxx"
-//#include "lightJetChiSquare.cxx"
-#include "lightJetChiSquareMinimumSolver.cxx"
+#include "NeutrinoEllipseCalculator.h"
+#include "lightJetChiSquareMinimumSolver.h"
 
 using namespace std;
+using namespace ROOT::Math;
+typedef LorentzVector<PxPyPzE4D<double> > XYZTLorentzVector;
 
 class topSystemChiSquare
 {
 
  private:
 
-  double bJet1_, lightJet1_;
-  double bJet2_, lightJet2_;
+  int bJet1_, lightJet1_;
+  int bJet2_, lightJet2_;
 
   double mTop_, mW_, mNu_;
 
-  math::XYZTLorentzVector measuredMET_, MET_;
+  XYZTLorentzVector measuredMET_, MET_;
 
   double measuredMETx_, METx_;
   double measuredMETy_, METy_;
   double measuredMETphi_, METphi_;
 
-  math::XYZTLorentzVector bJet1LorentzVector_, lightJet1LorentzVector_, lepton1LorentzVector_;
-  math::XYZTLorentzVector bJet2LorentzVector_, lightJet2LorentzVector_, lepton2LorentzVector_;
+  XYZTLorentzVector bJet1LorentzVector_, lightJet1LorentzVector_, lepton1LorentzVector_;
+  XYZTLorentzVector bJet2LorentzVector_, lightJet2LorentzVector_, lepton2LorentzVector_;
 
   double bJet1Px_, bJet1Py_, bJet1Pz_, bJet1E_, lepton1Px_, lepton1Py_, lepton1Pz_, lepton1E_;
   double bJet2Px_, bJet2Py_, bJet2Pz_, bJet2E_, lepton2Px_, lepton2Py_, lepton2Pz_, lepton2E_;
 
-  vector<math::XYZTLorentzVector> jets_, lightJets_;
-  vector<math::XYZTLorentzVector> jetWidths_, lightJetWidths_;
+  double reconstructed_bJet1Pt_, reconstructed_bJet1Phi_;
+  double reconstructed_bJet2Pt_, reconstructed_bJet2Phi_;
+
+  vector<XYZTLorentzVector> jets_, lightJets_;
+  vector<XYZTLorentzVector> jetWidths_, lightJetWidths_;
+
+  vector<XYZTLorentzVector> lightJetsBest_;
 
   double bJet1PtWidth_, bJet1PhiWidth_;
   double bJet2PtWidth_, bJet2PhiWidth_;
@@ -57,19 +62,35 @@ class topSystemChiSquare
   double bJet1PtDelta_, bJet1PhiDelta_;
   double bJet2PtDelta_, bJet2PhiDelta_;
 
-  neutrinoSolutions *nuSolOne_, *nuSolTwo_;
+  double bJet1PtDeltaBest_, bJet1PhiDeltaBest_;
+  double bJet2PtDeltaBest_, bJet2PhiDeltaBest_;
+
+  neutrinoSolutions nuSolOne_, nuSolTwo_;
   
-  NeutrinoEllipseCalculator *nuEllipseOneOneCalc_, *nuEllipseOneTwoCalc_;
-  NeutrinoEllipseCalculator *nuEllipseTwoOneCalc_, *nuEllipseTwoTwoCalc_;
+  NeutrinoEllipseCalculator nuEllipseOneOneCalc_, nuEllipseOneTwoCalc_;
+  NeutrinoEllipseCalculator nuEllipseTwoOneCalc_, nuEllipseTwoTwoCalc_;
 
-  TMatrixD nuEllipseOneOne_, nuEllipseOneTwo_;
-  TMatrixD nuEllipseTwoOne_, nuEllipseTwoTwo_;
+  TMatrixD *nuEllipseOneOne_, *nuEllipseOneTwo_;
+  TMatrixD *nuEllipseTwoOne_, *nuEllipseTwoTwo_;
 
-  ClosestApproach *closestApproachOne_, *closestApproachTwo_;
-  double d1_, theta1_, d2_, theta2_, d_, theta_;
+  int nOneOneRanges_, nOneTwoRanges_, nTwoOneRanges_, nTwoTwoRanges_, nBJet1Ranges_, nBJet2Ranges_;
 
-  lightJetChiSquareMinimumSolver *lightJetChiSquare_;
+  pair<pair<double, bool>,pair<double, bool> > bJet1LogSFRangeOneOne_;
+  pair<pair<double, bool>,pair<double, bool> > bJet1LogSFRangeOneTwo_;
+  pair<pair<double, bool>,pair<double, bool> > bJet2LogSFRangeTwoOne_;
+  pair<pair<double, bool>,pair<double, bool> > bJet2LogSFRangeTwoTwo_;
+  pair<pair<double, bool>,pair<double, bool> > bJet1LogSFRange_;
+  pair<pair<double, bool>,pair<double, bool> > bJet2LogSFRange_;
+
   double lightJetChi2_, bJetChi2_, chi2_;
+
+  bool pairingInfo_,pairingInfoBest_;
+
+  //ClosestApproach *closestApproachOne_, *closestApproachTwo_;
+  double d1_, theta1_, d2_, theta2_, d_, theta_,dx_,dy_;
+  double dxBest_,dyBest_,theta1Best_,theta2Best_;
+
+  lightJetChiSquareMinimumSolver lightJetChiSquare_;
 
   void setBJets();
   void setLightJets();
@@ -80,27 +101,33 @@ class topSystemChiSquare
 
   void setupNeutrinoSolutions();
   void setupNeutrinoEllipses();
-  void setupClosestApproaches();
+  //void setupClosestApproaches();
 
   void calcInitialLightJetDeltas(vector<double>& , vector<double>& );
+  void buildBestLightJets();
+  void calcNeutrinoEllipses();
+  bool calcNeutrinoSolutions();
+  void getDxDyFromEllipses(double, double);
 
  public:
 
-  topSystemChiSquare(vector<math::XYZTLorentzVector> , vector<math::XYZTLorentzVector> ,
-		    int , int, math::XYZTLorentzVector , 
-		    int , int, math::XYZTLorentzVector ,
-		    math::XYZTLorentzVector , double , double );
+  topSystemChiSquare(vector<XYZTLorentzVector> , vector<XYZTLorentzVector> ,
+		    int , int, XYZTLorentzVector , 
+		    int , int, XYZTLorentzVector ,
+		    XYZTLorentzVector , double , double );
 
   topSystemChiSquare(const topSystemChiSquare& other);
 
   ~topSystemChiSquare();
 
-  double operator()(const double* );
+  //double operator()(const double* );
+  double lightJetMinimizationOperator(const double* );
+  double bJetMinimizationOperator(const double* );
 
   void setBJetDeltas(double , double , double , double );
-  void setupBJetChiSquare(double , double , double , double );
+  void setupBJetChiSquare();
 
-  double calcBJetChiSquare();
+  void calcBJetChiSquare();
   
   void minimizeLightJetChiSquare();
   void minimizeBJetChiSquare();
