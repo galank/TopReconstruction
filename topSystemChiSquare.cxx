@@ -1,12 +1,12 @@
 #include "topSystemChiSquare.h"
 
 
-topSystemChiSquare::topSystemChiSquare(vector<math::XYZTLorentzVector> jets,
-				     vector<math::XYZTLorentzVector> jetWidths,
-				     int bJet1, int lightJet1, math::XYZTLorentzVector lepton1, 
-				     int bJet2, int lightJet2, math::XYZTLorentzVector lepton2,
-				     math::XYZTLorentzVector METLorentzVector,
-				     double mTop, double mW) :
+topSystemChiSquare::topSystemChiSquare(vector<XYZTLorentzVector> jets,
+				       vector<XYZTLorentzVector> jetWidths,
+				       int bJet1, int lightJet1, XYZTLorentzVector lepton1, 
+				       int bJet2, int lightJet2, XYZTLorentzVector lepton2,
+				       XYZTLorentzVector METLorentzVector,
+				       double mTop, double mW) :
   bJet1_    (bJet1),
   lightJet1_(lightJet1),
   bJet2_    (bJet2),
@@ -28,14 +28,17 @@ topSystemChiSquare::topSystemChiSquare(vector<math::XYZTLorentzVector> jets,
   lightJetWidths_(jetWidths),
   lightJetChi2_(0.),
   bJetChi2_    (0.),
-  chi2_        (0.)
+  chi2_        (0.),
+  dx_          (0.),
+  dy_          (0.),
+  lightJetChiSquare_(jets.size()-2,dx_,dy_)
 {
   setBJets();
   setLightJets();
   setLightJetCollections();
   setLeptons();
   setupNeutrinoSolutions();
-  lightJetChiSquare_=new lightJetChiSquareMinimumSolver(&lightJetPts_,&lightJetPtWidths_,&lightJetPhis_,&lightJetPhiWidths_,&d_,&theta_);
+  lightJetChiSquare_.setupEquations(lightJetPts_,lightJetPtWidths_,lightJetPhis_,lightJetPhiWidths_);
 }
 
 topSystemChiSquare::topSystemChiSquare(const topSystemChiSquare& other) :
@@ -60,24 +63,20 @@ topSystemChiSquare::topSystemChiSquare(const topSystemChiSquare& other) :
   lightJetWidths_(other.jetWidths_),
   lightJetChi2_(other.lightJetChi2_),
   bJetChi2_(other.bJetChi2_),
-  chi2_(other.chi2_)
+  chi2_(other.chi2_),
+  dx_          (other.dx_),
+  dy_          (other.dy_),
+  lightJetChiSquare_(other.jets_.size()-2,dx_,dy_)
 {
   setBJets();
   setLightJets();
   setLeptons();
   setupNeutrinoSolutions();
+  lightJetChiSquare_.setupEquations(lightJetPts_,lightJetPtWidths_,lightJetPhis_,lightJetPhiWidths_);
 }
 
 topSystemChiSquare::~topSystemChiSquare()
 {
-  delete nuSolOne_;
-  delete nuSolTwo_;
-  if(nuEllipseOneOneCalc_!=NULL) delete nuEllipseOneOneCalc_;
-  if(nuEllipseOneTwoCalc_!=NULL) delete nuEllipseOneTwoCalc_;
-  if(nuEllipseTwoOneCalc_!=NULL) delete nuEllipseTwoOneCalc_;
-  if(nuEllipseTwoTwoCalc_!=NULL) delete nuEllipseTwoTwoCalc_;
-  if(closestApproachOne_!=NULL) delete closestApproachOne_;
-  if(closestApproachTwo_!=NULL) delete closestApproachTwo_;
 }
 
 void topSystemChiSquare::setBJets()
@@ -91,6 +90,9 @@ void topSystemChiSquare::setBJets()
   bJet1Pz_=bJet1LorentzVector_.Pz();
   bJet1E_ =bJet1LorentzVector_.E();
 
+  reconstructed_bJet1Pt_ =bJet1LorentzVector_.Pt();
+  reconstructed_bJet1Phi_=bJet1LorentzVector_.Phi();
+
   bJet2LorentzVector_=jets_.at(bJet2_);
   bJet2PtWidth_ =jetWidths_.at(bJet2_).Pt() ;
   bJet2PhiWidth_=jetWidths_.at(bJet2_).Phi();
@@ -99,6 +101,9 @@ void topSystemChiSquare::setBJets()
   bJet2Py_=bJet2LorentzVector_.Py();
   bJet2Pz_=bJet2LorentzVector_.Pz();
   bJet2E_ =bJet2LorentzVector_.E();
+
+  reconstructed_bJet2Pt_ =bJet2LorentzVector_.Pt();
+  reconstructed_bJet2Phi_=bJet2LorentzVector_.Phi();
 }
 
 void topSystemChiSquare::setLightJets()
@@ -110,7 +115,7 @@ void topSystemChiSquare::setLightJets()
 void topSystemChiSquare::setLightJetCollections()
 {
   int iJet=0;
-  for(vector<math::XYZTLorentzVector>::iterator thisJet=lightJets_.begin(); thisJet!=lightJets_.end(); thisJet++)
+  for(vector<XYZTLorentzVector>::iterator thisJet=lightJets_.begin(); thisJet!=lightJets_.end(); thisJet++)
     {
       if( iJet==bJet1_ || iJet==bJet2_ )
 	{
@@ -123,6 +128,27 @@ void topSystemChiSquare::setLightJetCollections()
       lightJetPtWidths_ .push_back(lightJetWidths_.at(iJet).Pt() );
       lightJetPhiWidths_.push_back(lightJetWidths_.at(iJet).Phi());
       iJet++;
+    }
+}
+
+void topSystemChiSquare::buildBestLightJets()
+{
+  vector<double>* minJetDeltasX = lightJetChiSquare_.getMinDeltasX();
+  vector<double>* minJetDeltasY = lightJetChiSquare_.getMinDeltasY();
+  if(minJetDeltasX->size() != lightJets_.size())
+    { 
+      cout << "bad size in light jet modification check!" << endl;
+      chi2_ = -1.;
+      bJetChi2_ = -1.;
+      lightJetChi2_ = -1.;
+      return;
+    }
+  vector<double>::iterator thisDeltaX = minJetDeltasX->begin();
+  vector<double>::iterator thisDeltaY = minJetDeltasY->begin();
+  lightJetsBest_.clear();
+  for(vector<XYZTLorentzVector>::iterator thisJet=lightJets_.begin(); thisJet != lightJets_.end(); thisJet++, thisDeltaX++, thisDeltaY++)
+    {
+      lightJetsBest_.push_back(XYZTLorentzVector(thisJet->Px()+*thisDeltaX,thisJet->Py()+*thisDeltaY,thisJet->Pz(),thisJet->E()));
     }
 }
 
@@ -140,85 +166,128 @@ void topSystemChiSquare::setLeptons()
 
 void topSystemChiSquare::reset()
 {
-  double bJet1PxNew=(1./bJet1PtDelta_)*bJet1LorentzVector_.Pt()*cos(bJet1LorentzVector_.Phi()+bJet1PhiDelta_);
-  double bJet1PyNew=(1./bJet1PtDelta_)*bJet1LorentzVector_.Pt()*sin(bJet1LorentzVector_.Phi()+bJet1PhiDelta_);
-  double bJet1PzNew=(1./bJet1PtDelta_)*bJet1LorentzVector_.Pt()*sinh(bJet1LorentzVector_.Eta());
-  double bJet1ENew =(1./bJet1PtDelta_)*bJet1LorentzVector_.E();
-  math::XYZTLorentzVector deltaBJet1;
-  deltaBJet1.SetPxPyPzE(bJet1PxNew-bJet1Px_,bJet1PyNew-bJet1Py_,bJet1PzNew-bJet1Pz_,bJet1ENew-bJet1E_);
-
-  double bJet2PxNew=(1./bJet2PtDelta_)*bJet2LorentzVector_.Pt()*cos(bJet2LorentzVector_.Phi()+bJet2PhiDelta_);
-  double bJet2PyNew=(1./bJet2PtDelta_)*bJet2LorentzVector_.Pt()*sin(bJet2LorentzVector_.Phi()+bJet2PhiDelta_);
-  double bJet2PzNew=(1./bJet2PtDelta_)*bJet2LorentzVector_.Pt()*sinh(bJet2LorentzVector_.Eta());
-  double bJet2ENew =(1./bJet2PtDelta_)*bJet2LorentzVector_.E();
-  math::XYZTLorentzVector deltaBJet2; 
-  deltaBJet2.SetPxPyPzE(bJet2PxNew-bJet2Px_,bJet2PyNew-bJet2Py_,bJet2PzNew-bJet2Pz_,bJet2ENew-bJet2E_);
+  double bJet1PtScaleFactor = exp(bJet1PtDelta_*bJet1PtWidth_);
+  double bJet1Pt  = bJet1PtScaleFactor*reconstructed_bJet1Pt_;
+  double bJet1Phi = reconstructed_bJet1Phi_+bJet1PhiDelta_*bJet1PhiWidth_;
+  double bJet2PtScaleFactor = exp(bJet2PtDelta_*bJet2PtWidth_);
+  double bJet2Pt  = bJet2PtScaleFactor*reconstructed_bJet2Pt_;
+  double bJet2Phi = reconstructed_bJet2Phi_+bJet2PhiDelta_*bJet2PhiWidth_;
+  double bJet1PxNew = bJet1Pt*sin(bJet1Phi);
+  double bJet1PyNew = bJet1Pt*cos(bJet1Phi);
+  double bJet2PxNew = bJet2Pt*sin(bJet2Phi);
+  double bJet2PyNew = bJet2Pt*cos(bJet2Phi);
+  double bJet1ENew  = bJet1PtScaleFactor*bJet1LorentzVector_.E();
+  double bJet2ENew  = bJet2PtScaleFactor*bJet2LorentzVector_.E();
 
   //recalculate MET
-  MET_+=deltaBJet1+deltaBJet2;
-  METx_=MET_.Px();
-  METy_=MET_.Py();
+  METx_=measuredMETx_+bJet1LorentzVector_.Px()-bJet1PxNew+bJet2LorentzVector_.Px()-bJet2PxNew;
+  METy_=measuredMETy_+bJet1LorentzVector_.Py()-bJet1PyNew+bJet2LorentzVector_.Py()-bJet2PyNew;
 
   //reset values
   bJet1Px_=bJet1PxNew;
   bJet1Py_=bJet1PyNew;
-  bJet1Pz_=bJet1PzNew;
   bJet1E_ =bJet1ENew;
   bJet2Px_=bJet2PxNew;
   bJet2Py_=bJet2PyNew;
-  bJet2Pz_=bJet2PzNew;
   bJet2E_ =bJet2ENew;
 }
 
 void topSystemChiSquare::setupNeutrinoSolutions()
 {
-  nuSolOne_ = new neutrinoSolutions(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_,lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_,
-				    bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_,lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_,
-                                    METx_,METy_,mW_,mTop_);
+  nuSolOne_.setupMeasurements(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_,lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_,
+			      bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_,lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_,
+			      METx_,METy_,mW_,mTop_);
   
-  nuSolTwo_ = new neutrinoSolutions(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_,lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_,
-                                    bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_,lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_,
-				    METx_,METy_,mW_,mTop_);
+  nuSolTwo_.setupMeasurements(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_,lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_,
+			      bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_,lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_,
+			      METx_,METy_,mW_,mTop_);
 }
 
 void topSystemChiSquare::setupNeutrinoEllipses()
 {
-  nuEllipseOneOneCalc_->setBJet(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_); 
-  nuEllipseOneTwoCalc_->setBJet(bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_); 
-  nuEllipseOneOneCalc_->setBJet(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_); 
-  nuEllipseOneTwoCalc_->setBJet(bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_); 
+  nuEllipseOneOneCalc_.setupEllipse(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_,
+				    lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_,
+				    mTop_,mW_,mNu_);
 
-  nuEllipseOneOneCalc_->setLepton(lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_);
-  nuEllipseOneOneCalc_->setLepton(lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_);
-  nuEllipseOneOneCalc_->setLepton(lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_);
-  nuEllipseOneOneCalc_->setLepton(lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_);
+  nuEllipseOneTwoCalc_.setupEllipse(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_,
+				    lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_,
+				    mTop_,mW_,mNu_);
 
-  nuEllipseOneOne_=nuEllipseOneOneCalc_->getHomogeneousNeutrinoEllipse();
-  nuEllipseOneTwo_=nuEllipseOneTwoCalc_->getHomogeneousNeutrinoEllipse();
-  nuEllipseTwoOne_=nuEllipseTwoOneCalc_->getHomogeneousNeutrinoEllipse();
-  nuEllipseTwoTwo_=nuEllipseTwoTwoCalc_->getHomogeneousNeutrinoEllipse();
+  nuEllipseTwoOneCalc_.setupEllipse(bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_,
+				    lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_,
+				    mTop_,mW_,mNu_);
+
+  nuEllipseTwoTwoCalc_.setupEllipse(bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_,
+				    lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_,
+				    mTop_,mW_,mNu_);
+  nuEllipseOneOneCalc_.calcNeutrinoEllipse();
+  nuEllipseOneTwoCalc_.calcNeutrinoEllipse();
+  nuEllipseTwoOneCalc_.calcNeutrinoEllipse();
+  nuEllipseTwoTwoCalc_.calcNeutrinoEllipse();
+  nuEllipseOneOne_=nuEllipseOneOneCalc_.getHomogeneousNeutrinoEllipse();
+  nuEllipseOneTwo_=nuEllipseOneTwoCalc_.getHomogeneousNeutrinoEllipse();
+  nuEllipseTwoOne_=nuEllipseTwoOneCalc_.getHomogeneousNeutrinoEllipse();
+  nuEllipseTwoTwo_=nuEllipseTwoTwoCalc_.getHomogeneousNeutrinoEllipse();
+  bJet1LogSFRangeOneOne_=nuEllipseOneOneCalc_.getBJetLogSFRange(nOneOneRanges_);
+  bJet1LogSFRangeOneTwo_=nuEllipseOneTwoCalc_.getBJetLogSFRange(nOneTwoRanges_);
+  bJet2LogSFRangeTwoOne_=nuEllipseTwoOneCalc_.getBJetLogSFRange(nTwoOneRanges_);
+  bJet2LogSFRangeTwoTwo_=nuEllipseTwoTwoCalc_.getBJetLogSFRange(nTwoTwoRanges_);
 }
 
-void topSystemChiSquare::setupClosestApproaches()
+void topSystemChiSquare::calcNeutrinoEllipses()
 {
-  closestApproachOne_->setNeutrinoOneEllipse(nuEllipseOneOne_);
-  closestApproachOne_->setNeutrinoTwoEllipse(nuEllipseOneTwo_);
-  closestApproachOne_->getClosestApproach(d1_,theta1_);
-
-  closestApproachTwo_->setNeutrinoOneEllipse(nuEllipseTwoOne_);
-  closestApproachTwo_->setNeutrinoTwoEllipse(nuEllipseTwoTwo_);
-  closestApproachTwo_->getClosestApproach(d2_,theta2_);
-
-  //Keep the smallest as resulting from the most likely pairing of b-jets and leptons
-  d_=min(max(d1_,0.),max(d2_,0.));
-  theta_= (d_==d1_) ? theta1_ : (d_==d2_) ? theta2_ : 0.;
+  if(pairingInfo_)
+    {
+      nuEllipseOneOneCalc_.calcNeutrinoEllipse();
+      nuEllipseOneTwoCalc_.calcNeutrinoEllipse();
+    }
+  else
+    {
+      nuEllipseTwoOneCalc_.calcNeutrinoEllipse();
+      nuEllipseTwoTwoCalc_.calcNeutrinoEllipse();
+    }
 }
 
-void topSystemChiSquare::minimizeLightJetChiSquare()
+bool topSystemChiSquare::calcNeutrinoSolutions()
 {
-  lightJetChiSquare_->minimize();
-  lightJetChi2_=lightJetChiSquare_->getChiSquare();
+  vector<double> nu1E,  nu1px,  nu1py,  nu1pz,  nu2E,  nu2px,  nu2py,  nu2pz;
+  if(pairingInfo_)
+    {
+      nuSolOne_.setupMeasurements(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_,lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_,
+				  bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_,lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_,
+				  METx_,METy_,mW_,mTop_);
+      nuSolOne_.getRealNeutrinoVectors(nu1E, nu1px, nu1py, nu1pz,
+				       nu2E, nu2px, nu2py, nu2pz);
+      if(nu1E.size()>0) return true;
+
+    }
+  else
+    {
+      nuSolTwo_.setupMeasurements(bJet1Px_,bJet1Py_,bJet1Pz_,bJet1E_,lepton2Px_,lepton2Py_,lepton2Pz_,lepton2E_,
+				  bJet2Px_,bJet2Py_,bJet2Pz_,bJet2E_,lepton1Px_,lepton1Py_,lepton1Pz_,lepton1E_,
+				  METx_,METy_,mW_,mTop_);
+
+      nuSolTwo_.getRealNeutrinoVectors(nu1E, nu1px, nu1py, nu1pz,
+				       nu2E, nu2px, nu2py, nu2pz);
+      if(nu1E.size()>0) return true;
+    }
+  return false;
 }
+
+//void topSystemChiSquare::setupClosestApproaches()
+//{
+//  closestApproachOne_->setNeutrinoOneEllipse(nuEllipseOneOne_);
+//  closestApproachOne_->setNeutrinoTwoEllipse(nuEllipseOneTwo_);
+//  closestApproachOne_->getClosestApproach(d1_,theta1_);
+//
+//  closestApproachTwo_->setNeutrinoOneEllipse(nuEllipseTwoOne_);
+//  closestApproachTwo_->setNeutrinoTwoEllipse(nuEllipseTwoTwo_);
+//  closestApproachTwo_->getClosestApproach(d2_,theta2_);
+//
+//  //Keep the smallest as resulting from the most likely pairing of b-jets and leptons
+//  d_=min(max(d1_,0.),max(d2_,0.));
+//  theta_= (d_==d1_) ? theta1_ : (d_==d2_) ? theta2_ : 0.;
+//}
 
 void topSystemChiSquare::setBJetDeltas(double bJet1PtDelta, double bJet1PhiDelta, double bJet2PtDelta, double bJet2PhiDelta)
 {
@@ -229,80 +298,267 @@ void topSystemChiSquare::setBJetDeltas(double bJet1PtDelta, double bJet1PhiDelta
   reset();
 }
 
-void topSystemChiSquare::setupBJetChiSquare(double bJet1PtDelta, double bJet1PhiDelta, double bJet2PtDelta, double bJet2PhiDelta)
+void topSystemChiSquare::setupBJetChiSquare()
 {
+
   //Set b-jet deltas
-  setBJetDeltas(bJet1PtDelta,bJet1PhiDelta,bJet2PtDelta,bJet2PhiDelta);
+  //setBJetDeltas(bJet1PtDelta,bJet1PhiDelta,bJet2PtDelta,bJet2PhiDelta);
+  
+  bool noSolutions = calcNeutrinoSolutions();
+  if(noSolutions)
+    {
+      //Recalculate the neutrino ellipses
+      calcNeutrinoEllipses();
 
-  //Recalculate the neutrino ellipses
-  setupNeutrinoEllipses();
-  setupClosestApproaches();
-
-  //Minimize the light jet chi2 with the new MET
-  //Since lightJetChiSquare_ is constructed with pointers, the values are already updated
-  minimizeLightJetChiSquare();
+      //Minimize the light jet chi2 with the new MET
+      minimizeLightJetChiSquare();
+    }
+  else{
+    lightJetChi2_ = 0.;
+    dxBest_=0;
+    dyBest_=0;
+  }
+  calcBJetChiSquare();
+  
 }
 
-double topSystemChiSquare::calcBJetChiSquare()
+void topSystemChiSquare::calcBJetChiSquare()
 {
-  double bJetChi2=
-    pow((bJet1PtDelta_-1.)/bJet1PtWidth_,2)+pow((bJet1PhiDelta_-1.)/bJet1PhiWidth_,2)+
-    pow((bJet2PtDelta_-1.)/bJet2PtWidth_,2)+pow((bJet2PhiDelta_-1.)/bJet2PhiWidth_,2);
-  return bJetChi2;
+  bJetChi2_ = lightJetChi2_ + bJet1PtDelta_*bJet1PtDelta_ + bJet2PtDelta_*bJet2PtDelta_ + bJet1PhiDelta_*bJet1PhiDelta_ + bJet2PhiDelta_*bJet2PhiDelta_ ;
 }
 
-double topSystemChiSquare::operator()(const double* inputDeltas)
+void topSystemChiSquare::getDxDyFromEllipses(double theta1, double theta2)
 {
-  double bJet1PtDelta =inputDeltas[0];
-  double bJet1PhiDelta=inputDeltas[1];
-  double bJet2PtDelta =inputDeltas[2];
-  double bJet2PhiDelta=inputDeltas[3];
-  setupBJetChiSquare(bJet1PtDelta,bJet1PhiDelta,bJet2PtDelta,bJet2PhiDelta);
+  double nu1Array[3] = {cos(theta1),sin(theta1),1.}; 
+  double nu2Array[3] = {cos(theta2),sin(theta2),1.}; 
 
-  return calcBJetChiSquare();
+  TVectorD nu1Perp(3,nu1Array), nu2Perp(3,nu2Array);
+
+  if(pairingInfo_)
+    {
+      nu1Perp*=*nuEllipseOneOne_;
+      nu2Perp*=*nuEllipseTwoTwo_;
+    }
+  else
+    {
+      nu1Perp*=*nuEllipseOneTwo_;
+      nu2Perp*=*nuEllipseTwoOne_;
+    }
+
+  //FIXME! should this be negative or positive?  I think this is right....
+  dx_ = nu1Perp[0] + (METx_ - nu2Perp[0]);
+  dy_ = nu1Perp[1] + (METy_ - nu2Perp[1]);
+  theta1Best_ = theta1;
+  theta2Best_ = theta2;
+  dxBest_ = dx_;
+  dyBest_ = dy_;
 }
 
-void topSystemChiSquare::minimizeBJetChiSquare()
+double topSystemChiSquare::lightJetMinimizationOperator(const double* inputThetas)
 {
-  //Initial choice?
-  setBJetDeltas(0,0,0,0);
+  double theta1 = inputThetas[0];
+  double theta2 = inputThetas[1];
 
+  getDxDyFromEllipses(theta1, theta2);
+
+  return lightJetChiSquare_.getChiSquare();
+}
+
+double topSystemChiSquare::bJetMinimizationOperator(const double* inputDeltas)
+{
+  bJet1PtDelta_ =inputDeltas[0];
+  bJet1PhiDelta_=inputDeltas[1];
+  bJet2PtDelta_ =inputDeltas[2];
+  bJet2PhiDelta_=inputDeltas[3];
+  reset();
+  setupBJetChiSquare();
+
+  return bJetChi2_;
+}
+
+void topSystemChiSquare::minimizeLightJetChiSquare()
+{
   ROOT::Math::Minimizer* min = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
   min->SetMaxFunctionCalls(1000000);
   min->SetTolerance(0.001);
   min->SetPrintLevel(0);
   
   //Set up the functor
-  ROOT::Math::Functor func(this,&topSystemChiSquare::operator(),4);
+  ROOT::Math::Functor func(this,&topSystemChiSquare::lightJetMinimizationOperator,2);
 
   //Set up the minimization piece:
   min->SetFunction(func);
-  const TString bJetPtDeltaString ("bJetPtDelta_" );
-  const TString bJetPhiDeltaString("bJetPhiDelta_");
+  const TString ellipse1String ("theta1" );
+  const TString ellipse2String ("theta2");
   TString parameterName;
+
+  double theta1(0);
+  double theta2(0);
+  getDxDyFromEllipses(theta1,theta2);
+  double startingChi2 = lightJetChiSquare_.getChiSquare();
+  double piOver2 = 1.57079632679;
+  for(int iTheta1 = 0; iTheta1 < 4; iTheta1++)
+    {
+      for(int iTheta2 = 0; iTheta2 < 4; iTheta2++)
+	{
+	  if(iTheta1 == 0 && iTheta2 == 0) continue;
+	  getDxDyFromEllipses((double)iTheta1*piOver2,(double)iTheta2*piOver2);
+	  double thisChi2 = lightJetChiSquare_.getChiSquare();
+	  if(thisChi2 < startingChi2)
+	    {
+	      startingChi2 = thisChi2;
+	      theta1 = (double)iTheta1*piOver2;
+	      theta2 = (double)iTheta2*piOver2;
+	    }
+	}
+    }
+
   
-  parameterName=bJetPtDeltaString+"_0";;
-  min->SetVariable(0,parameterName.Data(),bJet1PtDelta_,0.001);
-  parameterName = bJetPhiDeltaString+"_0";
-  min->SetVariable(1,parameterName.Data(),bJet1PhiDelta_,0.001);
-  parameterName=bJetPtDeltaString+"_1";;
-  min->SetVariable(2,parameterName.Data(),bJet2PtDelta_,0.001);
-  parameterName = bJetPhiDeltaString+"_1";
-  min->SetVariable(3,parameterName.Data(),bJet2PhiDelta_,0.001);
+  min->SetVariable(0,ellipse1String.Data(),theta1,0.001);
+  min->SetVariable(1,ellipse2String.Data(),theta2,0.001);
 
   //Run the minimization
   min->Minimize();
-  bJetChi2_=min->MinValue();
-  
+  lightJetChi2_=min->MinValue();
+  getDxDyFromEllipses(min->X()[0],min->X()[1]);
+
   delete min; 
+}
+
+void topSystemChiSquare::minimizeBJetChiSquare()
+{
+  pairingInfo_ = false;
+  bJetChi2_ = -1.;
+  for(unsigned int i = 0; i<2; i++)
+    {
+      //Set pairing of b-jets
+      if(i == 1) pairingInfo_ = true;
+
+      if(pairingInfo_)
+	{
+	  nBJet1Ranges_ = nOneOneRanges_;
+	  nBJet2Ranges_ = nTwoTwoRanges_;
+	  bJet1LogSFRange_ = bJet1LogSFRangeOneOne_;
+	  bJet2LogSFRange_ = bJet2LogSFRangeTwoTwo_;
+	}
+      else
+	{
+	  nBJet1Ranges_ = nOneTwoRanges_;
+	  nBJet2Ranges_ = nTwoOneRanges_;
+	  bJet1LogSFRange_ = bJet1LogSFRangeOneTwo_;
+	  bJet2LogSFRange_ = bJet2LogSFRangeTwoOne_;
+	}
+
+      if( nBJet1Ranges_ == 0 || nBJet2Ranges_ == 0 )
+	{
+	  continue;
+	}
+
+      double bJet1PtDeltaStart(0.);
+      if(bJet1LogSFRange_.first.second && bJet1LogSFRange_.second.second)
+	{
+	  if(bJet1LogSFRange_.first.first > 0 || bJet1LogSFRange_.second.first < 0.)
+	    {
+	      double width = abs(bJet1LogSFRange_.second.first - bJet1LogSFRange_.first.first);
+	      bJet1PtDeltaStart = (abs(bJet1LogSFRange_.first.first) > abs(bJet1LogSFRange_.second.first))? 
+		                  bJet1LogSFRange_.first.first  - (bJet1LogSFRange_.first.first /abs(bJet1LogSFRange_.first.first) )*0.01*width:
+		                  bJet1LogSFRange_.second.first - (bJet1LogSFRange_.second.first/abs(bJet1LogSFRange_.second.first))*0.01*width;
+	    }
+	}
+      double bJet2PtDeltaStart(0.);
+      if(bJet2LogSFRange_.first.second && bJet2LogSFRange_.second.second)
+	{
+	  if(bJet2LogSFRange_.first.first > 0 || bJet2LogSFRange_.second.first < 0.)
+	    {
+	      double width = abs(bJet2LogSFRange_.second.first - bJet2LogSFRange_.first.first);
+	      bJet2PtDeltaStart = (abs(bJet2LogSFRange_.first.first) > abs(bJet2LogSFRange_.second.first))? 
+		                  bJet2LogSFRange_.first.first  - (bJet2LogSFRange_.first.first /abs(bJet2LogSFRange_.first.first) )*0.01*width:
+		                  bJet2LogSFRange_.second.first - (bJet2LogSFRange_.second.first/abs(bJet2LogSFRange_.second.first))*0.01*width;
+	    }
+	}
+
+      setBJetDeltas(bJet1PtDeltaStart,0.,bJet2PtDeltaStart,0.);
+
+      ROOT::Math::Minimizer* min = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
+      min->SetMaxFunctionCalls(1000000);
+      min->SetTolerance(0.001);
+      min->SetPrintLevel(0);
   
-  //return bJetChi2_;
+      //Set up the functor
+      ROOT::Math::Functor func(this,&topSystemChiSquare::bJetMinimizationOperator,4);
+
+      //Set up the minimization piece:
+      min->SetFunction(func);
+      const TString bJetPtDeltaString ("bJetPtDelta_" );
+      const TString bJetPhiDeltaString("bJetPhiDelta_");
+      TString parameterName;
+
+      parameterName=bJetPtDeltaString+"_0";
+      min->SetVariable(0,parameterName.Data(),bJet1PtDelta_,0.001);
+      if( bJet1LogSFRange_.first.second && bJet1LogSFRange_.first.second ) {
+	min->SetLimitedVariable(0,parameterName.Data(),bJet1PtDelta_,0.001,bJet1LogSFRange_.first.first,bJet1LogSFRange_.second.first);
+      }
+      else if( bJet1LogSFRange_.first.second ) {
+	min->SetLowerLimitedVariable(0,parameterName.Data(),bJet1PtDelta_,0.001,bJet1LogSFRange_.first.first);
+      }
+      else if( bJet1LogSFRange_.second.second ) {
+	min->SetUpperLimitedVariable(0,parameterName.Data(),bJet1PtDelta_,0.001,bJet1LogSFRange_.second.first);
+      }
+      parameterName = bJetPhiDeltaString+"_0";
+      min->SetVariable(1,parameterName.Data(),bJet1PhiDelta_,0.001);
+      parameterName=bJetPtDeltaString+"_1";
+      //min->SetVariable(2,parameterName.Data(),bJet2PtDelta_,0.001);
+      if( bJet2LogSFRange_.first.second && bJet2LogSFRange_.second.second ) {
+	min->SetLimitedVariable(2,parameterName.Data(),bJet2PtDelta_,0.001,bJet2LogSFRange_.first.first,bJet2LogSFRange_.second.first);
+      }
+      else if( bJet2LogSFRange_.first.second ){
+	min->SetLowerLimitedVariable(2,parameterName.Data(),bJet2PtDelta_,0.001,bJet2LogSFRange_.first.first);
+      }
+      else if( bJet2LogSFRange_.second.second ){
+	min->SetUpperLimitedVariable(2,parameterName.Data(),bJet2PtDelta_,0.001,bJet2LogSFRange_.second.first);
+      }
+      parameterName = bJetPhiDeltaString+"_1";
+      min->SetVariable(3,parameterName.Data(),bJet2PhiDelta_,0.001);
+
+      //Run the minimization
+      min->Minimize();
+      double minValue = min->MinValue();
+      if(bJetChi2_ <0) 
+	{
+	  bJetChi2_=minValue;
+	  pairingInfoBest_ = pairingInfo_;
+	  bJet1PtDeltaBest_ = min->X()[0];
+	  bJet1PhiDeltaBest_= min->X()[1];
+	  bJet2PtDeltaBest_ = min->X()[2];
+	  bJet2PhiDeltaBest_= min->X()[3];
+	}
+      else if(bJetChi2_ > minValue)
+	{
+	  bJetChi2_=minValue;
+	  pairingInfoBest_ = pairingInfo_;
+	  bJet1PtDeltaBest_ = min->X()[0];
+	  bJet1PhiDeltaBest_= min->X()[1];
+	  bJet2PtDeltaBest_ = min->X()[2];
+	  bJet2PhiDeltaBest_= min->X()[3];
+	}
+      delete min; 
+    }
+
+  pairingInfo_ = pairingInfoBest_;
+  bJet1PtDelta_ = bJet1PtDeltaBest_ ;
+  bJet1PhiDelta_= bJet1PhiDeltaBest_;
+  bJet2PtDelta_ = bJet2PtDeltaBest_ ;
+  bJet2PhiDelta_= bJet2PhiDeltaBest_;
+  reset();
+  setupBJetChiSquare();
+  buildBestLightJets();
 
 }
 
+
 double topSystemChiSquare::getChiSquare()
 {
-  chi2_=bJetChi2_+lightJetChi2_;
+  chi2_=bJetChi2_;
   return chi2_;
 }
 
@@ -315,23 +571,17 @@ double topSystemChiSquare::calcSolution()
   
   vector<double> nu1E,  nu1px,  nu1py,  nu1pz,  nu2E,  nu2px,  nu2py,  nu2pz;
 
-  nuSolOne_->getRealNeutrinoVectors(nu1E, nu1px, nu1py, nu1pz,
+  nuSolOne_.getRealNeutrinoVectors(nu1E, nu1px, nu1py, nu1pz,
 				    nu2E, nu2px, nu2py, nu2pz);
   if(nu1E.size()>0) solutionFlag1=true;
 
-  nuSolTwo_->getRealNeutrinoVectors(nu1E, nu1px, nu1py, nu1pz,
+  nuSolTwo_.getRealNeutrinoVectors(nu1E, nu1px, nu1py, nu1pz,
 				    nu2E, nu2px, nu2py, nu2pz);
   if(nu1E.size()>0) solutionFlag2=true;
-
   if(solutionFlag1||solutionFlag2) return chi2_;
-
-
   //If there are no real solutions, the ellipses don't touch
   //We need to minimize the global chi2
-
   minimizeBJetChiSquare();
-
-
   return getChiSquare();
 }
 
