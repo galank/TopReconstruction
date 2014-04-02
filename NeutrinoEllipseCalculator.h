@@ -8,6 +8,8 @@
 #include <iomanip>
 #include <string>
 #include <math.h>
+#include <list>
+#include <utility>
 
 #include <TMatrix.h>
 #include <TMatrixD.h>
@@ -15,9 +17,7 @@
 #include <TArrayD.h>
 #include <TMath.h>
 #include "Math/VectorUtil.h"
-#include "Math/GenVector/LorentzVector.h"
 #include "TLorentzVector.h"
-#include "DataFormats/Math/interface/LorentzVector.h"
 
 #include "Math/RootFinderAlgorithms.h"
 #include "Math/Polynomial.h"
@@ -29,10 +29,8 @@ class NeutrinoEllipseCalculator{
 
  private:
   //inputs: lepton and b-jet momenta
-  //TLorentzVector bJet_;
-  //TLorentzVector lepton_;
-  math::XYZTLorentzVector *bJet_;
-  math::XYZTLorentzVector *lepton_;
+  TLorentzVector bJet_;
+  TLorentzVector lepton_;
 
   double   bJetBeta_,   bJetBeta2_,   bJetGamma_,   bJetGamma2_;
   double leptonBeta_, leptonBeta2_, leptonGamma_, leptonGamma2_;
@@ -54,16 +52,17 @@ class NeutrinoEllipseCalculator{
   double Z2_;
 
   //matrices
-  TMatrixD *Ab_;
-  TMatrixD *Al_;
+  TMatrixD Ab_;
+  TMatrixD Al_;
 
-  TMatrixD *Htilde_;
-  TMatrixD *H_;
-  TMatrixD *Hperp_;
+  TMatrixD Htilde_;
+  TMatrixD H_;
+  TMatrixD Hperp_;
 
-  TMatrixD *Nperp_;
+  TMatrixD Nperp_;
 
-  double bJetSF_;
+  int nRanges_;
+  pair<pair<double,bool>,pair<double,bool> > bJetLogSFRange_;
 
   void setBJetRelativisticFactors();
   void setLeptonRelativisticFactors();
@@ -80,19 +79,13 @@ class NeutrinoEllipseCalculator{
   void neutrinoSolution();
   void labSystemTransform();
 
-  void calcNeutrinoEllipse();
-
  public:
   NeutrinoEllipseCalculator();
-  //NeutrinoEllipseCalculator(TLorentzVector& , TLorentzVector& , double& , double& , double& );
-  //NeutrinoEllipseCalculator(math::XYZTLorentzVector& , math::XYZTLorentzVector& , double& , double& , double& );
-  NeutrinoEllipseCalculator(double , double , double , double , double , double , double , double , double& , double& , double& );
+  NeutrinoEllipseCalculator(double , double , double , double , double , double , double , double , double , double , double );
   ~NeutrinoEllipseCalculator();
 
-  //void setbJet(const TLorentzVector& );
-  //void setLepton(const TLorentzVector& );
-  //void setbJet(const math::XYZTLorentzVector& );
-  //void setLepton(const math::XYZTLorentzVector& );
+  void setupEllipse(double , double , double , double , double , double , double , double , double , double , double );
+
   void setBJet(const double , const double, const double , const double );
   void setLepton(const double , const double, const double , const double );
 
@@ -101,10 +94,13 @@ class NeutrinoEllipseCalculator{
   void setNeutrinoMass(double& mNu){ mnu_=mNu; };
   void setMasses(double& , double& , double& );
   
-  TMatrixD getNeutrinoEllipse();
-  TMatrixD getHomogeneousNeutrinoEllipse();
+  TMatrixD* getNeutrinoEllipse();
+  TMatrixD* getHomogeneousNeutrinoEllipse();
+
+  void calcNeutrinoEllipse();
   
   void calcBJetCorrection();
+  pair<pair<double,bool>,pair<double,bool> > getBJetLogSFRange(int& nRanges);
 
   void print3By3Matrix(const TMatrixD& m);
   void print4By4Matrix(const TMatrixD& m);
