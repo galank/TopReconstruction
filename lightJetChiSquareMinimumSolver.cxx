@@ -24,7 +24,30 @@ lightJetChiSquareMinimumSolver::lightJetChiSquareMinimumSolver(vector<double>& j
   checkSize(jetPts, jetPtWidths, jetPhis, jetPhiWidths);
   setCartesianWidths(jetPts, jetPtWidths, jetPhis, jetPhiWidths);
   calcLinearCoefficients();
-  calcVector();
+  //calcVector();
+}
+
+lightJetChiSquareMinimumSolver::lightJetChiSquareMinimumSolver(int nObjects,
+							       double& dx, double& dy) :
+  jetPxWidths2_ (vector<double>(nObjects,0.)),
+  jetPyWidths2_ (vector<double>(nObjects,0.)),
+  jetPxPyWidths_(vector<double>(nObjects,0.)),
+  dx_           (dx),
+  dy_           (dy),
+  dxCheck_      (0.),
+  dyCheck_      (0.),
+  A_            (2*(nObjects-1),2*(nObjects-1)),
+  solver_       (new TDecompLU(2*(nObjects-1))),
+  b_            (2*(nObjects-1)),
+  minDeltasX_   (nObjects,0.),
+  minDeltasY_   (nObjects,0.),
+  chi2_         (0.),
+  nJets_        (nObjects)
+{
+  //checkSize(jetPts, jetPtWidths, jetPhis, jetPhiWidths);
+  //setCartesianWidths(jetPts, jetPtWidths, jetPhis, jetPhiWidths);
+  //calcLinearCoefficients();
+  //calcVector();
 }
 
 lightJetChiSquareMinimumSolver::lightJetChiSquareMinimumSolver(const lightJetChiSquareMinimumSolver& other) :
@@ -51,19 +74,32 @@ lightJetChiSquareMinimumSolver::~lightJetChiSquareMinimumSolver()
   delete solver_;
 }
 
+void lightJetChiSquareMinimumSolver::setupEquations(vector<double>& jetPts , vector<double>& jetPtWidths , 
+						    vector<double>& jetPhis, vector<double>& jetPhiWidths)
+{
+  checkSize(jetPts, jetPtWidths, jetPhis, jetPhiWidths);
+  if(jetPts.size() != jetPxWidths2_.size())
+    {
+      cout << "Unequal number of cartesian and radial jets!" << endl;
+      return;
+    }
+  setCartesianWidths(jetPts, jetPtWidths, jetPhis, jetPhiWidths);
+  calcLinearCoefficients();
+}
+
 void lightJetChiSquareMinimumSolver::setCartesianWidths(vector<double>& jetPts , vector<double>& jetPtWidths , 
 							vector<double>& jetPhis, vector<double>& jetPhiWidths)
 {
   for( unsigned int i = 0 ; i < nJets_;  i++)
     {
-      double expTwoSigmaPtMinusTwoSigmaPhi  = exp(2.*log(1+jetPtWidths .at(i))-2.*jetPhiWidths.at(i));
-      double p = 0.5*pow(jetPts.at(i),2)*expTwoSigmaPtMinusTwoSigmaPhi;
-      double expTwoSigmaPhi = exp(2.*jetPhiWidths.at(i));
+      //double expTwoSigmaPtMinusTwoSigmaPhi  = exp(2.*log(1+jetPtWidths .at(i))-2.*jetPhiWidths.at(i));
+      double p = 0.5*pow(jetPts.at(i)*(1+jetPtWidths .at(i)),2);
+      double expMinusTwoSigmaPhi = exp(-2.*jetPhiWidths.at(i));
       double cosTwoPhi = cos(2.*jetPhis.at(i));
       double sinTwoPhi = sin(2.*jetPhis.at(i));
-      jetPxWidths2_.at(i)   =  p * (expTwoSigmaPhi + cosTwoPhi) ;
-      jetPyWidths2_.at(i)   =  p * (expTwoSigmaPhi - cosTwoPhi) ;
-      jetPxPyWidths_.at(i) = p * sinTwoPhi;      
+      jetPxWidths2_.at(i)   =  p * (1 + cosTwoPhi*expMinusTwoSigmaPhi) ;
+      jetPyWidths2_.at(i)   =  p * (1 - cosTwoPhi*expMinusTwoSigmaPhi) ;
+      jetPxPyWidths_.at(i) = p * sinTwoPhi*expMinusTwoSigmaPhi;      
     }
 }
 
