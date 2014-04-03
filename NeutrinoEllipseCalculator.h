@@ -11,9 +11,8 @@
 #include <list>
 #include <utility>
 
-#include <TMatrix.h>
+#include <TVectorD.h>
 #include <TMatrixD.h>
-#include <TMatrixDEigen.h>
 #include <TArrayD.h>
 #include <TMath.h>
 #include "Math/VectorUtil.h"
@@ -31,6 +30,7 @@ class NeutrinoEllipseCalculator{
   //inputs: lepton and b-jet momenta
   TLorentzVector bJet_;
   TLorentzVector lepton_;
+  
 
   double   bJetBeta_,   bJetBeta2_,   bJetGamma_,   bJetGamma2_;
   double leptonBeta_, leptonBeta2_, leptonGamma_, leptonGamma2_;
@@ -44,7 +44,7 @@ class NeutrinoEllipseCalculator{
   double Sx_, Sy_;
   double epsilon2_;
 
-  double c_, s_; //cosine and sine of theta_{b,mu}
+  double c_, s_; //cosine and sine of theta_{b,l}
 
   double omega_;
   double Omega_;
@@ -58,8 +58,12 @@ class NeutrinoEllipseCalculator{
   TMatrixD Htilde_;
   TMatrixD H_;
   TMatrixD Hperp_;
+  TMatrixD HperpInv_;
 
   TMatrixD Nperp_;
+
+  TVectorD nuPerp_;
+  TVectorD pNu_;
 
   int nRanges_;
   pair<pair<double,bool>,pair<double,bool> > bJetLogSFRange_;
@@ -94,10 +98,13 @@ class NeutrinoEllipseCalculator{
   void setNeutrinoMass(double& mNu){ mnu_=mNu; };
   void setMasses(double& , double& , double& );
   
-  TMatrixD* getNeutrinoEllipse();
   TMatrixD* getHomogeneousNeutrinoEllipse();
+  TMatrixD* getExtendedNeutrinoEllipse();
 
-  void calcNeutrinoEllipse();
+  TVectorD* getNeutrinoMomentum(double theta);
+
+  void calcNeutrinoEllipse(double , double , double , double , double , double , double , double );
+  void calcExtendedNeutrinoEllipse();
   
   void calcBJetCorrection();
   pair<pair<double,bool>,pair<double,bool> > getBJetLogSFRange(int& nRanges);

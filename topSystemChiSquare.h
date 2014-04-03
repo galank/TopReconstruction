@@ -54,6 +54,8 @@ class topSystemChiSquare
 
   vector<XYZTLorentzVector> lightJetsBest_;
 
+  XYZTLorentzVector nu1Best_, nu2Best_;
+
   double bJet1PtWidth_, bJet1PhiWidth_;
   double bJet2PtWidth_, bJet2PhiWidth_;
   vector<double> lightJetPts_ , lightJetPtWidths_ , lightJetPtDeltas_ ;
@@ -108,6 +110,7 @@ class topSystemChiSquare
   void calcNeutrinoEllipses();
   bool calcNeutrinoSolutions();
   void getDxDyFromEllipses(double, double);
+  void buildBestNeutrinos();
 
  public:
 

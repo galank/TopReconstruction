@@ -17,8 +17,8 @@ NeutrinoEllipseCalculator::NeutrinoEllipseCalculator(double bJetPx, double bJetP
   setBJet(bJetPx,bJetPy,bJetPz,bJetE);
   setLepton(leptonPx,leptonPy,leptonPz,leptonE);
 
-  setBJetRelativisticFactors();
-  setLeptonRelativisticFactors();
+  //setBJetRelativisticFactors();
+  //setLeptonRelativisticFactors();
 
   setMasses(mTop,mW,mNu);
 
@@ -34,8 +34,8 @@ void NeutrinoEllipseCalculator::setupEllipse(double bJetPx, double bJetPy, doubl
   setBJet(bJetPx,bJetPy,bJetPz,bJetE);
   setLepton(leptonPx,leptonPy,leptonPz,leptonE);
 
-  setBJetRelativisticFactors();
-  setLeptonRelativisticFactors();
+  //setBJetRelativisticFactors();
+  //setLeptonRelativisticFactors();
 
   setMasses(mTop,mW,mNu);
 
@@ -59,14 +59,14 @@ void NeutrinoEllipseCalculator::setBJet(const double px, const double py, const 
 {
   bJet_.SetPxPyPzE(px,py,pz,E);
   setBJetRelativisticFactors();
-  setAngles();
+  //setAngles();
 }
 
 void NeutrinoEllipseCalculator::setLepton(const double px, const double py, const double pz, const double E)
 {
   lepton_.SetPxPyPzE(px,py,pz,E);
   setLeptonRelativisticFactors();
-  setAngles();
+  //setAngles();
 }
 
 void NeutrinoEllipseCalculator::setBJetRelativisticFactors()
@@ -98,6 +98,7 @@ void NeutrinoEllipseCalculator::initializeMatrices()
   Htilde_=TMatrixD(3,3);
   H_=TMatrixD(3,3);
   Hperp_=TMatrixD(3,3);
+  HperpInv_=TMatrixD(3,3);
   Nperp_=TMatrixD(3,3);
 
   Ab_.Zero();
@@ -105,7 +106,14 @@ void NeutrinoEllipseCalculator::initializeMatrices()
   Htilde_.Zero();
   H_.Zero();
   Hperp_.Zero();
+  HperpInv_.Zero();
   Nperp_.Zero();
+
+  nuPerp_=TVectorD(3);
+  pNu_=TVectorD(3);
+
+  nuPerp_.Zero();
+  pNu_.Zero();
 }
 
 void NeutrinoEllipseCalculator::Wsurface()
@@ -242,10 +250,15 @@ void NeutrinoEllipseCalculator::labSystemTransform()
   //U[1][1]=1;
   //U[2][2]=-1;
   //Nperp_=TMatrixD(HperpInv,TMatrixD::kTransposeMult,TMatrixD(U,TMatrixD::kMult,HperpInv));
+
 }
 
-void NeutrinoEllipseCalculator::calcNeutrinoEllipse()
+void NeutrinoEllipseCalculator::calcNeutrinoEllipse(double bJetPx, double bJetPy, double bJetPz, double bJetE,
+						    double leptonPx, double leptonPy, double leptonPz, double leptonE)
 {
+  setBJet(bJetPx,bJetPy,bJetPz,bJetE);
+  setLepton(leptonPx,leptonPy,leptonPz,leptonE);
+  setAngles();
   Wsurface();
   leptonEllipsoid();
   bJetEllipsoid();
@@ -253,7 +266,19 @@ void NeutrinoEllipseCalculator::calcNeutrinoEllipse()
   labSystemTransform();
 }
 
-TMatrixD* NeutrinoEllipseCalculator::getNeutrinoEllipse()
+void NeutrinoEllipseCalculator::calcExtendedNeutrinoEllipse()
+{
+  HperpInv_=Hperp_;
+  HperpInv_.Invert();
+  TMatrixD U(3,3);
+  U.Zero();
+  U[0][0]=1;
+  U[1][1]=1;
+  U[2][2]=-1;
+  Nperp_=TMatrixD(HperpInv_,TMatrixD::kTransposeMult,TMatrixD(U,TMatrixD::kMult,HperpInv_));
+}
+
+TMatrixD* NeutrinoEllipseCalculator::getExtendedNeutrinoEllipse()
 {
   //calcNeutrinoEllipse();
   return &Nperp_;
@@ -263,6 +288,19 @@ TMatrixD* NeutrinoEllipseCalculator::getHomogeneousNeutrinoEllipse()
 {
   //calcNeutrinoEllipse();
   return &Hperp_;
+}
+
+TVectorD* NeutrinoEllipseCalculator::getNeutrinoMomentum(double theta)
+{
+  calcExtendedNeutrinoEllipse();
+  double tArray[3]={cos(theta),sin(theta),1.};
+  TVectorD t(3,tArray);
+  nuPerp_=t;
+  nuPerp_*=Hperp_;
+  pNu_=nuPerp_;
+  pNu_*=HperpInv_;
+  pNu_*=H_;
+  return &pNu_;
 }
 
 void NeutrinoEllipseCalculator::calcBJetCorrection()
