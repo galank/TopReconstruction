@@ -5,10 +5,9 @@
 #include <cmath>
 #include <memory>
 #include <string>
-#include <sstream>
-#include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 
 #include "TString.h"
 #include "Math/Minimizer.h"
@@ -23,6 +22,7 @@
 using namespace std;
 using namespace ROOT::Math;
 typedef LorentzVector<PxPyPzE4D<double> > XYZTLorentzVector;
+
 
 class topSystemChiSquare
 {
@@ -50,7 +50,9 @@ class topSystemChiSquare
   double reconstructed_bJet2Pt_, reconstructed_bJet2Phi_;
 
   vector<XYZTLorentzVector> jets_, lightJets_;
-  vector<XYZTLorentzVector> jetWidths_, lightJetWidths_;
+  //vector<XYZTLorentzVector> jetWidths_, lightJetWidths_;
+  vector<double> jetPtWidths_;
+  vector<double> jetPhiWidths_;
 
   vector<XYZTLorentzVector> lightJetsBest_;
 
@@ -99,6 +101,8 @@ class topSystemChiSquare
   void setLightJetCollections();
   void setLeptons();
 
+  //bool sortJets(XYZTLorentzVector , XYZTLorentzVector );
+
   void reset();
 
   void setupNeutrinoSolutions();
@@ -114,7 +118,7 @@ class topSystemChiSquare
 
  public:
 
-  topSystemChiSquare(vector<XYZTLorentzVector> , vector<XYZTLorentzVector> ,
+  topSystemChiSquare(vector<XYZTLorentzVector> , vector<double> , vector<double> ,
 		    int , int, XYZTLorentzVector , 
 		    int , int, XYZTLorentzVector ,
 		    XYZTLorentzVector , double , double );
@@ -137,6 +141,12 @@ class topSystemChiSquare
   double getChiSquare();
 
   double calcSolution();
+
+  void fillBestMomenta(XYZTLorentzVector& , XYZTLorentzVector& ,
+		       XYZTLorentzVector& , XYZTLorentzVector& ,
+		       XYZTLorentzVector& , XYZTLorentzVector& ,
+		       XYZTLorentzVector& ,
+		       bool& );
 };
 
 #endif
