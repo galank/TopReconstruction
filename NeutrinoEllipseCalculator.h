@@ -28,12 +28,34 @@ class NeutrinoEllipseCalculator{
 
  private:
   //inputs: lepton and b-jet momenta
-  TLorentzVector bJet_;
-  TLorentzVector lepton_;
-  
+  //TLorentzVector bJet_;
+  //TLorentzVector lepton_;
 
-  double   bJetBeta_,   bJetBeta2_,   bJetGamma_,   bJetGamma2_;
+  const double& bJetPx_;
+  const double& bJetPy_;
+  const double& bJetPz_;
+  const double& bJetE_ ;
+
+  const double& bJetPtWidth_;
+  const double& bJetPhiWidth_;
+  const double& bJetEtaWidth_;
+
+  const double& leptonPx_;
+  const double& leptonPy_;
+  const double& leptonPz_;
+  const double& leptonE_ ;
+
+  const double& unscaled_bJetPx_;
+  const double& unscaled_bJetPy_;
+  const double& unscaled_bJetPz_;
+  const double& unscaled_bJetE_ ;
+  const double& unscaled_bJetP_ ;
+
+  double bJetP2_, bJetP_, bJetMass2_, bJetE_nonConst_;
+  double bJetBeta_,   bJetBeta2_,   bJetGamma_,   bJetGamma2_;
   double leptonBeta_, leptonBeta2_, leptonGamma_, leptonGamma2_;
+  double leptonP2_, leptonP_, leptonMass2_;
+  double leptonPhi_, leptonTheta_;
 
   //particle masses
   double mW_, mt_, mnu_;
@@ -44,7 +66,7 @@ class NeutrinoEllipseCalculator{
   double Sx_, Sy_;
   double epsilon2_;
 
-  double c_, s_; //cosine and sine of theta_{b,l}
+  double c_, s_,c2_,s2_; //cosine and sine of theta_{b,l}
 
   double omega_;
   double Omega_;
@@ -68,10 +90,16 @@ class NeutrinoEllipseCalculator{
   int nRanges_;
   pair<pair<double,bool>,pair<double,bool> > bJetLogSFRange_;
 
-  void setBJetRelativisticFactors();
-  void setLeptonRelativisticFactors();
+ public:
+
+  void setBJetFactors();
+  void setTempBJetFactors(double , double , double , double);
+  void setLeptonFactors();
+
+  double getZ2(double, double, double);
 
   void setAngles();
+  void setTempAngles(double,double,double);
 
   void initializeMatrices();
 
@@ -80,18 +108,22 @@ class NeutrinoEllipseCalculator{
   void Wsurface();
   void bJetEllipsoid();
   void leptonEllipsoid();
+  void calcZ2();
   void neutrinoSolution();
   void labSystemTransform();
 
- public:
-  NeutrinoEllipseCalculator();
-  NeutrinoEllipseCalculator(double , double , double , double , double , double , double , double , double , double , double );
+  bool errorFlag_;
+
+  NeutrinoEllipseCalculator(const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&);
+  NeutrinoEllipseCalculator(const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, const double&, double , double , double );
   ~NeutrinoEllipseCalculator();
 
-  void setupEllipse(double , double , double , double , double , double , double , double , double , double , double );
+  bool badPoint(){return errorFlag_;};
 
-  void setBJet(const double , const double, const double , const double );
-  void setLepton(const double , const double, const double , const double );
+  void setupEllipse(double , double , double );
+
+  //void setBJet(const double , const double, const double , const double );
+  //void setLepton(const double , const double, const double , const double );
 
   void setTopMass(double& mTop){ mt_=mTop; };
   void setWBosonMass(double& mW){ mW_=mW; };
@@ -103,7 +135,7 @@ class NeutrinoEllipseCalculator{
 
   TVectorD* getNeutrinoMomentum(double theta);
 
-  void calcNeutrinoEllipse(double , double , double , double , double , double , double , double );
+  void calcNeutrinoEllipse();
   void calcExtendedNeutrinoEllipse();
   
   void calcBJetCorrection();

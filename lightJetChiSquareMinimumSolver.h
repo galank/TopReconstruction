@@ -56,6 +56,7 @@ private:
   lightJetChiSquareMinimumSolver(const lightJetChiSquareMinimumSolver& other);
 
   void setupEquations(vector<double>& , vector<double>& , vector<double>&, vector<double>&);
+  void printResults();
 
   int nJets(){return nJets_;};
   double jetPxWidth2(int i){return jetPxWidths2_.at(i);};

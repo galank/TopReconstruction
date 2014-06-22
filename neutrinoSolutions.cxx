@@ -187,11 +187,13 @@ neutrinoSolutions::neutrinoSolutions():
   getNeutrinoVectors();
 }
 
-void neutrinoSolutions::setupMeasurements(const double& b1E_, const double& b1px_, const double& b1py_, const double& b1pz_, 
-					  const double& l1E_, const double& l1px_, const double& l1py_, const double& l1pz_, 
-					  const double& b2E_, const double& b2px_, const double& b2py_, const double& b2pz_, 
-					  const double& l2E_, const double& l2px_, const double& l2py_, const double& l2pz_, 
-					  const double& METx_, const double& METy_, const double& mW0_, const double& mt0_)
+void neutrinoSolutions::setupMeasurements(const double b1px_, const double b1py_, const double b1pz_, const double b1E_, 
+					  const double l1px_, const double l1py_, const double l1pz_, const double l1E_, 
+					  const double b2px_, const double b2py_, const double b2pz_, const double b2E_, 
+					  const double l2px_, const double l2py_, const double l2pz_, const double l2E_, 
+					  const double METx_, const double METy_, 
+					  const double mW1_,  const double mW2_ ,
+					  const double mt1_,  const double mt2_ )
 {
   b1E  = b1E_ ;
   b1px = b1px_;
@@ -211,18 +213,14 @@ void neutrinoSolutions::setupMeasurements(const double& b1E_, const double& b1px
   l2pz = l2pz_;
   METx = METx_;
   METy = METy_;
-  mW0  = mW0_ ;
-  mt0  = mt0_ ;
-  mW1 = mW0_;
-  mW2 = mW0_;
-  mt1 = mt0_;
-  mt2 = mt0_;
-  mtBar = mt0_;
-  mtDelta = 0;
-  mW1Temp = mW0_+1;
-  mW2Temp = mW0_+1;
-  mt1Temp = mt0_+1;
-  mt2Temp = mt0_+1;
+  mW1 = mW1_;
+  mW2 = mW2_;
+  mt1 = mt1_;
+  mt2 = mt2_;
+  mW1Temp = mW1_+1;
+  mW2Temp = mW2_+1;
+  mt1Temp = mt1_+1;
+  mt2Temp = mt2_+1;
   getNeutrinoVectors();
 }
 
@@ -239,7 +237,7 @@ double neutrinoSolutions::topPairMass(const double& mt1_, const double& mt2_, co
 
   vector<double> pairMasses;
 
-  for(unsigned int j = 1; j < nu1E.size(); j++) if(abs( nu1E[i].real()) > 10000 * abs( nu1E[i].imag()) /*nu1E[j].imag() == 0*/) {
+  for(unsigned int j = 1; j < nu1E.size(); j++) if(abs( nu1E[i].real()) > 1e9 * abs( nu1E[i].imag()) /*nu1E[j].imag() == 0*/) {
       double topPairE  = ( nu1E[j].real() +  nu2E[j].real() + b1E  + l1E  + b2E  + l2E );
       double topPairPx = (nu1px[j].real() + nu2px[j].real() + b1px + l1px + b2px + l2px);
       double topPairPy = (nu1py[j].real() + nu2py[j].real() + b1py + l1py + b2py + l2py);
@@ -283,7 +281,7 @@ double neutrinoSolutions::topPairPzFunction(const double& mt1_, const double& mt
 
   vector<double> pairPzs;
 
-  for(unsigned int j = 1; j < nu1E.size(); j++) if(/*abs( nu1E[i].real()) > 10000 * abs( nu1E[i].imag())*/ nu1E[j].imag() == 0) {
+  for(unsigned int j = 1; j < nu1E.size(); j++) if(/*abs( nu1E[i].real()) > 1e9 * abs( nu1E[i].imag())*/ nu1E[j].imag() == 0) {
       double topPairPz = (nu1pz[j].real() + nu2pz[j].real() + b1pz + l1pz + b2pz + l2pz);
 
       pairPzs.push_back(topPairPz);
@@ -395,10 +393,10 @@ double neutrinoSolutions::imagness(const double& mt1_, const double& mt2_, const
   for(unsigned int i = 0; i < nu1E.size(); i++)
     {
       //if(nu1E[i].imag() ==0){realness = 1;}
-      if( abs( nu1E[i].real()) > 10000 * abs( nu1E[i].imag()) && abs( nu2E[i].real()) > 10000 * abs( nu2E[i].imag()) &&
-	  abs(nu1px[i].real()) > 10000 * abs(nu1px[i].imag()) && abs(nu2px[i].real()) > 10000 * abs(nu2px[i].imag()) &&
-	  abs(nu1py[i].real()) > 10000 * abs(nu1py[i].imag()) && abs(nu2py[i].real()) > 10000 * abs(nu2py[i].imag()) &&
-	  abs(nu1pz[i].real()) > 10000 * abs(nu1pz[i].imag()) && abs(nu2pz[i].real()) > 10000 * abs(nu2pz[i].imag())  )realness = 1;
+      if( abs( nu1E[i].real()) > 1e9 * abs( nu1E[i].imag()) && abs( nu2E[i].real()) > 1e9 * abs( nu2E[i].imag()) &&
+	  abs(nu1px[i].real()) > 1e9 * abs(nu1px[i].imag()) && abs(nu2px[i].real()) > 1e9 * abs(nu2px[i].imag()) &&
+	  abs(nu1py[i].real()) > 1e9 * abs(nu1py[i].imag()) && abs(nu2py[i].real()) > 1e9 * abs(nu2py[i].imag()) &&
+	  abs(nu1pz[i].real()) > 1e9 * abs(nu1pz[i].imag()) && abs(nu2pz[i].real()) > 1e9 * abs(nu2pz[i].imag())  )realness = 1;
       //cout << nu1E[i].imag() << endl;
     }
   setMasses(temp_mt1,temp_mt2,temp_mW1,temp_mW2);
@@ -457,10 +455,18 @@ void neutrinoSolutions::getRealNeutrinoVectors(vector<double>& nu1E_real, vector
   for(unsigned int i = 0; i < nu1E.size(); i++)
     {
       //cout << "Solution is " << nu1E[i] << endl;
-      if( abs( nu1E[i].real()) > 10000 * abs( nu1E[i].imag()) && abs( nu2E[i].real()) > 10000 * abs( nu2E[i].imag()) &&
-	  abs(nu1px[i].real()) > 10000 * abs(nu1px[i].imag()) && abs(nu2px[i].real()) > 10000 * abs(nu2px[i].imag()) &&
-	  abs(nu1py[i].real()) > 10000 * abs(nu1py[i].imag()) && abs(nu2py[i].real()) > 10000 * abs(nu2py[i].imag()) &&
-	  abs(nu1pz[i].real()) > 10000 * abs(nu1pz[i].imag()) && abs(nu2pz[i].real()) > 10000 * abs(nu2pz[i].imag()) &&
+      if( abs( nu1E[i].real()) > 1e9 * abs( nu1E[i].imag()) && abs( nu2E[i].real()) > 1e9 * abs( nu2E[i].imag()) &&
+	  abs(nu1px[i].real()) > 1e9 * abs(nu1px[i].imag()) && abs(nu2px[i].real()) > 1e9 * abs(nu2px[i].imag()) &&
+	  abs(nu1py[i].real()) > 1e9 * abs(nu1py[i].imag()) && abs(nu2py[i].real()) > 1e9 * abs(nu2py[i].imag()) &&
+	  abs(nu1pz[i].real()) > 1e9 * abs(nu1pz[i].imag()) && abs(nu2pz[i].real()) > 1e9 * abs(nu2pz[i].imag()) &&
+	  //nu1E [i].imag() == 0. && 
+	  //nu1px[i].imag() == 0. &&
+	  //nu1py[i].imag() == 0. &&
+	  //nu1pz[i].imag() == 0. &&
+	  //nu2E [i].imag() == 0. &&
+	  //nu2px[i].imag() == 0. &&
+	  //nu2py[i].imag() == 0. &&
+	  //nu2pz[i].imag() == 0. &&
 	  nu1E[i].real() > 0.0 && nu2E[i].real() > 0.0 )
 	{
 	  nu1E_real.push_back(  nu1E[i].real() );
@@ -471,9 +477,7 @@ void neutrinoSolutions::getRealNeutrinoVectors(vector<double>& nu1E_real, vector
 	 nu2px_real.push_back( nu2px[i].real() );
 	 nu2py_real.push_back( nu2py[i].real() );
 	 nu2pz_real.push_back( nu2pz[i].real() );
-
 	}
-      else continue;
     }
 }
 
@@ -696,11 +700,9 @@ void neutrinoSolutions::getNeutrinoVectors()
   //if(!quartic) cout << "degenerate neutrino solutions" << endl;
   if(quartic) 
     {
-      //cout << "finding roots" << endl;
       nu1EValues = quartic->FindRoots();
       delete quartic;
       quartic = NULL;
-      //cout << "done running FindRoots" << endl;
     }
   for(vector<complex<double> >::iterator iNu1E = nu1EValues.begin(); iNu1E!=nu1EValues.end(); iNu1E++)
     {
@@ -731,7 +733,7 @@ void neutrinoSolutions::getNeutrinoVectors()
       nu2py.push_back( thisNu2Py );
       nu2pz.push_back( thisNu2Pz );	     
     }
-  
+
 } 
 
 //vector<pair<double, double> > getIntersectionPoints(TGraph& one, TGraph& two)

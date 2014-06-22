@@ -30,11 +30,13 @@ public:
 		    const double& METx_, const double& METy_, const double& mW0_, const double& mt0_);
   neutrinoSolutions();
   ~neutrinoSolutions();
-  void setupMeasurements(const double& b1E_, const double& b1px_, const double& b1py_, const double& b1pz_, 
-			 const double& l1E_, const double& l1px_, const double& l1py_, const double& l1pz_, 
-			 const double& b2E_, const double& b2px_, const double& b2py_, const double& b2pz_, 
-			 const double& l2E_, const double& l2px_, const double& l2py_, const double& l2pz_, 
-			 const double& METx_, const double& METy_, const double& mW0_, const double& mt0_);
+  void setupMeasurements(const double b1E_, const double B1px_, const double b1py_, const double b1pz_, 
+			 const double l1E_, const double l1px_, const double l1py_, const double l1pz_, 
+			 const double b2E_, const double b2px_, const double b2py_, const double b2pz_, 
+			 const double l2E_, const double l2px_, const double l2py_, const double l2pz_, 
+			 const double METx_,const double METy_, 
+			 const double mW1_, const double mW2_,
+			 const double mt1_, const double mt2_);
   //void getMasses(double& mt1, double& mt2, double& mW1, double& mW2);
   void getRealNeutrinoVectors(std::vector<double>& nu1E_real, std::vector<double>& nu1px_real, std::vector<double>& nu1py_real, std::vector<double>& nu1pz_real, 
 			      std::vector<double>& nu2E_real, std::vector<double>& nu2px_real, std::vector<double>& nu2py_real, std::vector<double>& nu2pz_real);
