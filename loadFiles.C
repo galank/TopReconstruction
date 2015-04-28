@@ -1,12 +1,15 @@
 #include "TROOT.h"
 
-void loadFiles(TString dirName, int nSmearings, int whichLoop, int maxLoops)
+void loadFiles(TString dir, int whichLoop, int maxLoops)
 {
   gROOT->LoadMacro("neutrinoSolutions.cxx+g");
-  gROOT->LoadMacro("NeutrinoEllipseCalculator.cxx+g");
-  gROOT->LoadMacro("lightJetChiSquareMinimumSolver.cxx+g");
+  gROOT->LoadMacro("WDaughterEllipseCalculator.cxx+g");
   gROOT->LoadMacro("topSystemChiSquare.cxx+g");
-  gROOT->LoadMacro("ttbarReconstructionFromLHE.C+g");
-  ttbarReconstructionFromLHE m(dirName);
-  m.Loop(nSmearings,whichLoop,maxLoops);
+  gROOT->LoadMacro("leptonicTopSystemChiSquare.cxx+g");
+  gROOT->LoadMacro("hadronicTopSystemChiSquare.cxx+g");
+  gROOT->LoadMacro("lightJetChiSquareMinimumSolver.cxx+g");
+  gROOT->LoadMacro("topEventMinimizer.cxx+g");
+  gROOT->LoadMacro("topReconstructionFromLHE.C+g");
+  topReconstructionFromLHE t;
+  t.Loop(dir,whichLoop,maxLoops);
 }
