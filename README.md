@@ -7,9 +7,9 @@ This repository contains a C++ implementation of the methods described in "Objec
 
 The code can be run from the command line:
 
-root -b -l -q loadFiles.C'(<output_dir>,whichLoop,maxLoops)'
+root -b -l -q loadFiles.C'("output_dir",whichLoop,maxLoops)'
 
-where <output_dir> is a string containing the path to the directory where the output is written; whichLoop and maxLoops are integers used to split processing into multiple jobs. For each job to run on 100 events, maxLoops=100 and whichLoop will be the starting event number. For example, to run on the first 100 events and write the output to the directory output_files, call:
+where "output_dir" is a string containing the path to the directory where the output is written; whichLoop and maxLoops are integers used to split processing into multiple jobs. For each job to run on 100 events, maxLoops=100 and whichLoop will be the starting event number. For example, to run on the first 100 events and write the output to the directory output_files, call:
 
 root -b -l -q loadFiles.C'("output_files",0,100)'
 
@@ -70,15 +70,15 @@ We can write and minimize a chi square variable representing the distance betwee
 There are two constructors, which require different inputs.
 
 1. With list of input objects and resolutions:
-- vector of four-vectors of light jets
-- vector of pT resolutions (one for each jet)
-- vector of phi resolutions
-- vector of eta resolutions
-- coordinates (2D or 3D) of the momentum imbalance to cancel
+   - vector of four-vectors of light jets
+   - vector of pT resolutions (one for each jet)
+   - vector of phi resolutions
+   - vector of eta resolutions
+   - coordinates (2D or 3D) of the momentum imbalance to cancel
 
 2. With number of objects only:
-- number of lights jets
-- coordinates (2D or 3D) of the momentum imbalance to cancel
+   - number of lights jets
+   - coordinates (2D or 3D) of the momentum imbalance to cancel
 
 In both cases the momentum imbalance vector is passed by reference, in order to allow for changes (as the other objects in the event are allowed to vary, the sum of top momenta will also vary).
 
